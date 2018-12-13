@@ -3,6 +3,8 @@ import data
 import envelope
 import numpy as np
 import PSO
+import math
+import eos
 
 #Calculate Objective function based on Critical Temperature and Critical Pressure---------
 def objFunc_dens_Psat(par,argss):
@@ -715,8 +717,8 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     bmin = np.empty((2))
     bmin[0] = 5.00E-10
     bmax[0] = 6.00E-10
-    bmin[1] = 0.50
-    bmax[1] = 1.50
+    bmin[1] = 0.005
+    bmax[1] = 3.00
     
     bounds = np.zeros((2,nparameter))
     bounds[0][0] = bmin[0] #min x
@@ -773,10 +775,10 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
     
     
     #Initialize PSO method - ALL PARAMETERS
-    best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
-    best_param = best[0]
-    param_list = best[1]
-    param_Fobj = best[2]
+    #best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
+    #best_param = best[0]
+    #param_list = best[1]
+    #param_Fobj = best[2]
     
     #Initialize MDPSO
     #best = PSO.MDPSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bounds)
@@ -792,16 +794,24 @@ def Estimate_Parameters_crit(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,b
 
     #Initialize PSO method to fit parameter 2 (phi)
     #Create Particles to calculate surface for objective function
-    ntot = 20
+    pi = math.pi
+    b = eos.b_calc(IDs,EoS)
+    Nav = 6.023e23
+    omega = data.omega(IDs)[0]
+    sig = np.power(6/pi*b/Nav*np.exp(omega),1.0/3.0)[0]
+    L = sig
+    
+    ntot = 50
     nparameter = 2
     p = np.empty((ntot,nparameter))
     phirange = np.linspace(bmin[1],bmax[1],ntot)
     for i in range(0,ntot):
-        p[i][0] = 1e10
+        p[i][0] = L
         p[i][1] = phirange[i]
     nswarm = ntot
     print 'particles'
     print p
+    print 'begin PSO method to estimate phi'
     best = PSO.PSO(nparameter,ndata,nswarm,objFunc_dens_Psat_crit,argss,p,bmin,bmax)
     best_param = best[0]
     param_list = best[1]

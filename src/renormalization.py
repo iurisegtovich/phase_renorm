@@ -68,9 +68,13 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     umat = []
     ures = np.empty((nd))
     uv = []
+    df_vdw = np.empty((nd))
     
-    df_vec = []
+    df_vec2 = []
     f_vec2 = []
+    P_vec2 = []
+    u_vec2 = []
+    aa2 = []
     
     if nc==1:
         X = np.ones((8))
@@ -103,12 +107,13 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         
         
         pi = math.pi
-        #sig = np.power(6/pi*b/Nav,1.0/3.0)[0]
+        omega = data.omega(IDs)[0]
+        sig = np.power(6/pi*b/Nav*np.exp(omega),1.0/3.0)[0]
         #sig = np.power(b/Nav,1.0/3.0)[0]
         #c1 = data.c1(IDs)[0]
         #en = data.en(IDs)[0]
         #sig = np.power(1.15798*b/Nav,1.0/3.0)[0]
-        #L = 1.25*sig
+        L = sig
         #L = 1.5*sig
         #L = 1/c1*sig
         #print L,phi
@@ -169,22 +174,46 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             k = k+1
             
         f_orig = f                                #Initial helmholtz energy density
+        
+        """
+        #-------------------------------------------
+        #Fluctuation Analysis-----------------------
+        #-------------------------------------------
+        drho = rho[int(nd/2)]-rho[int(nd/2)-1]
+        for i in range(1,nd-2):
+            u[i] = (f[i+1]-f[i-1])/(2*drho)
+        u[nd-1] = (f[nd-1]-f[nd-2])/drho
+        u[0] = (f[1]-f[0])/drho
+        
+        fspl = splrep(rho,f,k=3)         #Cubic Spline Representation
+        f3 = splev(rho,fspl,der=0)
+        u = splev(rho,fspl,der=1)        #Evaluate Cubic Spline First derivative
+
+        P = -f3+rho*u
+        
+        P_vec2.append(P)
+        u_vec2.append(u)
+        #===========================================
+        #===========================================
+        """
     
         #Subtract attractive forces (due long range correlations)
         f = f + 0.5*amix*(rho**2)
         
-        df_vec.append(rho)
+        df_vec2.append(rho)
+        f_vec2.append(rho)
 
         #Adimensionalization
         rho = rho*bmix
         f = f*bmix*bmix/amix
         T = T*bmix*R/amix
+        
+        f_vec2.append(f)
 
         rho1 = rho.flatten()
 
         #Main loop****************************************************************
         i = 1
-        f_vec2.append(f)
         while i<=n:
             #print i
             #K = kB*T/((2**(3*i))*(L**3))
@@ -204,10 +233,10 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             
             #Update Helmholtz Energy Density
             df = np.array(df) #used to evaluate each step
-            df_vec.append(df)
             f = f + df
-            f_vec2.append(f)
-            #print 'i=',i,K/bmix*amix,f[60]/bmix*amix,df[60]/bmix*amix,T
+            df_vec2.append(list(df/bmix/bmix*amix*1e6/rho))
+            f_vec2.append(list(f))
+            #print 'i=',i,K,f[2],df[2],T,df_vec2[1][2]
             i = i+1
             #print i
 
@@ -231,10 +260,14 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         #strT = str(T)
         #dfT = ('df_%s.csv' %strT)
         TT = np.zeros((nd))
+        df_vdw = 0.5*((rho*bmix)**2)
+        df_vec2.append(list(df_vdw))
+        f_vec2.append(list(df_vdw))
         for i in range(0,nd):
             TT[i] = T
-        df_vec.append(TT)
-        envelope.report_df(df_vec,'df.csv')
+        df_vec2.append(TT)
+        f_vec2.append(TT)
+        envelope.report_df(df_vec2,'df.csv')
         envelope.report_df(f_vec2,'f.csv')
         #raw_input('----')
 
@@ -267,6 +300,17 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
             Pmatv[count][j] = P[j]
             #print Pmatv[count][j],count,j,x[0]
         count = count+1
+        
+        """
+        #Fluctuation Analysis-----------------------
+        P_vec2.append(P)
+        u_vec2.append(u)
+        P_vec2.append(TT)
+        u_vec2.append(TT)
+        envelope.report_df(P_vec2,'P.csv')
+        envelope.report_df(u_vec2,'u.csv')
+        #===========================================
+        """
 
         fmat.append(f)
         fmatres.append(fres)
@@ -280,6 +324,14 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
         Pmat = RectBivariateSpline(x0v,rhob,Pmatv)
     else:
         Pmat = 'NULL'
+        
+        #differente imposed by renormalization
+        dfv = []
+        dff = f-f_orig
+        dfv.append(dff)
+        avdw = []
+        aa2 = 0.5*amix*(rho**2)
+        avdw.append(aa2)
 
     renorm_out = []
     renorm_out.append(fv)
@@ -297,6 +349,8 @@ def renorm(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate,L_est,ph
     renorm_out.append(fresv)
     renorm_out.append(Pv)
     renorm_out.append(bmixv)
+    renorm_out.append(dfv)
+    renorm_out.append(avdw)
     return renorm_out
 #=========================================================================================
 
@@ -717,7 +771,7 @@ def beta_exponent(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_b
     y = np.empty((n))
     x = np.empty((n))
 
-    Tvec = np.linspace(0.99*Tc,0.999*Tc,n)
+    Tvec = np.linspace(0.98*Tc,0.998*Tc,n)
 
     #Calculate coexisting densities
     for i in range(0,n):
@@ -728,7 +782,7 @@ def beta_exponent(EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,estimate_b
         rhov.append(dens[0])
         rhol.append(dens[1])
         Pv.append(dens[2])
-        print T,dens[0],dens[1],dens[2]
+        #print T,dens[0],dens[1],dens[2]
 
     #Calculate critical exponent
     for i in range(0,n):
@@ -1346,7 +1400,7 @@ def crit_mix(estimate_crit,Tci,rhoci,EoS,IDs,MR,T,nd,nx,kij,nc,CR,en_auto,beta_a
 #======================================================================================
 
 #Function to calculate entropy curve--------------- 
-def calc_entropy(T,f,P,rho,h,IDs):
+def calc_entropy(T,f,P,avdw,rho,h,IDs):
     
     f0 = np.array(menus.flatten(f[0]))
     f1 = np.array(menus.flatten(f[1]))
@@ -1364,15 +1418,17 @@ def calc_entropy(T,f,P,rho,h,IDs):
     P1 = np.array(menus.flatten(P[1]))
     P2 = np.array(menus.flatten(P[2]))
     
+    avdw0 = np.array(menus.flatten(avdw[0]))
+    
     V0 = 1/rho0
     V1 = 1/rho1
     V2 = 1/rho2
     
-    A0 = f0/rho0
+    A0 = f0/rho0 #MPa.m3/mol
     A1 = f1/rho1
     A2 = f2/rho2
 
-    F0 = A0/(R*T0)
+    F0 = A0/(R*T0) 
     F1 = A1/(R*T1)
     F2 = A2/(R*T2)
     
@@ -1385,17 +1441,24 @@ def calc_entropy(T,f,P,rho,h,IDs):
     dAdT = (A2 - A0)/(2*h)
     dFdT = (F2 - F0)/(2*h)
     
-    S_A = -dAdT
-    S_F = -dFdT
+    S_A = -dAdT*1.0e6 # converting from MPa.m3/(mol.K) = 1e-6 J/(mol.K) to J/(mol.K)
+    S_F = -dFdT       # 1/K
+    S_F = -dAdT/R     # converting from MPa.m3/(mol.K) to adimensional    
     
     rho = rho[0][0][0]
     S_A = S_A[0]
     S_F = S_F[0]
+    A0 = A0[0]*1.0e6 # converting from MPa.m3/mol = 1e-6 J/mol to J/mol
+    f0 = f0[0]*1.0e6 # converting from MPa = 1e-6 J/m3 to J/m3
+    avdw0 = avdw0[0]*1.0e6 # converting from MPa = 1e-6 J/m3 to J/m3
     
     S_data = []
     S_data.append(rho)
     S_data.append(S_A)
     S_data.append(S_F)
+    S_data.append(A0)
+    S_data.append(f0)
+    S_data.append(avdw0)
     
     return S_data
 #==================================================================================================
@@ -1425,7 +1488,6 @@ def plot_entropy(rho,S_A,S_F,print_options,figname):
     ax.set_title('Entropy')
     
     fig.savefig('../output/Entropy1.png')
-    fig.close()
     
     #plot S_F curve
     fig, ax = plt.subplots(figsize=(10,10))
@@ -1436,13 +1498,12 @@ def plot_entropy(rho,S_A,S_F,print_options,figname):
     ax.set_title('Entropy')
     
     fig.savefig('../output/Entropy2.png')
-    fig.close()
 #==================================================================================================
 
 #Function to report calculated derivative properties of pure compounds after renormalization------- 
-def report_entropy(title,rho,S_A,S_F,print_options):
+def report_entropy(title,rho,S_A,S_F,A0,f0,avdw,print_options):
     n = len(rho)
-    header = 'rho(mol/m3);S_A;S_F\n'
+    header = 'Density(mol/m3);Entropy(J/mol/K);Entropy(Adimensional);Helmholtz Energy(J/mol);Helmholtz Energy Density (J/m3);VdW a parameter(J/m3)\n'
     savedir = str('../output/%s' %title)
     with open(savedir,'w') as file:
         file.write('Defined Configuration:----------------------\n')
@@ -1457,7 +1518,7 @@ def report_entropy(title,rho,S_A,S_F,print_options):
         file.write(header)
         for i in range(0,n):
                 print rho[i],S_A[i],S_F[i],i
-                lin1 = [str(round(rho[i],9)),str(round(S_A[i],9)),str(round(S_F[i],9))]
+                lin1 = [str(round(rho[i],9)),str(round(S_A[i],9)),str(round(S_F[i],9)),str(round(A0[i],9)),str(round(f0[i],9)),str(round(avdw[i],9))]
                 lin = ('%s\n' % ';'.join(lin1))
                 file.write(lin)
 #==================================================================================================

@@ -20,12 +20,12 @@ print ('    ============================================\n\n\n')
 
 """
 user_options = []
-user_options.append(8) #nc
-user_options.append([21,22,23,24,25,26,27,28]) #IDs
+user_options.append(4) #nc
+user_options.append([1,2,3,4]) #IDs
 user_options.append(3) #EoS
 user_options.append(1) #MR
-user_options.append([0.3985,0.0512,0.0286,0.0042,0.0079,0.0018,0.0025,0.5016]) #z
-user_options.append([3,3,3,3,3,3,3,3]) #CPA AM
+user_options.append([0.2,0.2,0.3,0.3]) #z
+user_options.append([3,3,3,3]) #CPA AM
 user_options.append(1) #CPA CR
 print_options = []
 print_options = menus.print_options(user_options)
@@ -33,8 +33,8 @@ print_options = menus.print_options(user_options)
 
 user_options = []
 user_options.append(1) #nc
-user_options.append([7,7]) #IDs
-user_options.append(6) #EoS
+user_options.append([14,14]) #IDs
+user_options.append(2) #EoS
 user_options.append(1) #MR
 user_options.append([0.5,0.5]) #z
 user_options.append([3,3]) #CPA AM
@@ -65,7 +65,7 @@ AR = user_options[5] #Define association rules - CPA
 CR = user_options[6] #Define combining rule - CPA
 env_type = 11
 P = 0.05
-T = 510.00
+T = 253.8
 kij = np.zeros((nc,nc))
 
 #CPA auto-association configurations

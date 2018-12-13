@@ -37,7 +37,7 @@ def initial_dewT(z,T,P,IDs,EoS,MR,kij):
     omega = np.array(data.omega(IDs))
 
     #Initial point calculation, find dew T and y, given P, beta
-    beta = 1 #specified, considering bubble point
+    beta = 1.0 #specified, considering bubble point
     errT = 1.0
     tolT = 1e-3
     iteri = 1
@@ -101,6 +101,7 @@ def dewT_guess(z,T,P,IDs,EoS,MR,kij):
     out.append(T)
     out.append(x)
     out.append(K)
+    
     return out
 #======================================================================================
 
@@ -1779,7 +1780,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
             rhovv = dens[0]
             rholl = dens[1]
         Fobj = abs(dens[0]-dens[1])
-        print T,dens[0],dens[1],dens[2],Tmax,Tmin
+        #print T,dens[0],dens[1],dens[2],Tmax,Tmin
         #raw_input('...')
 
         if dens[2]!=0:
@@ -1831,7 +1832,7 @@ def PV_findTc3_envelope(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_a
 
 #Report found critical data------------------------------------------------------------
 def report_crit(Tc,Pc,rhoc,IDs,Lc,phic,beta):
-    title = 'critical.log'
+    title = 'critical_S+A.log'
     if Lc==0 and phic==0:
         Lc = float(data.L(IDs)[0])
         phic = float(data.phi(IDs)[0])
@@ -2043,6 +2044,10 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
     f1 = []
     f2 = []
     
+    df0 = []
+    df1 = []
+    df2 = []
+    
     A0 = []
     A1 = []
     A2 = []
@@ -2058,6 +2063,8 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
     T0 = []
     T1 = []
     T2 = []
+    
+    avdw1 = []
     
     h = 5e-2
 
@@ -2077,7 +2084,10 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
             rho1.append(ren[2])
             P1.append(ren[8])
             f1.append(ren[0])
+            df1.append(ren[10])
             A1 = f1[0][0]/rho1[0][0]
+            A1 = A1*1.0e6 #converting from 1e-6 J/mol to J/mol
+            avdw1.append(ren[11])
             #print 'central',T,dens[0],dens[1],dens[2],Fobj
 
             ren = renormalization.renorm(EoS,IDs,MR,T+T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
@@ -2085,7 +2095,9 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
             rho2.append(ren[2])
             P2.append(ren[8])
             f2.append(ren[0])
+            df2.append(ren[10])
             A2 = f2[0][0]/rho2[0][0]
+            A2 = A2*1.0e6 #converting from 1e-6 J/mol to J/mol
             #print 'plus',T,dens[0],dens[1],dens[2],Fobj_plus
 
             ren = renormalization.renorm(EoS,IDs,MR,T-T*h,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,False,0,0)
@@ -2093,7 +2105,9 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
             rho0.append(ren[2])
             P0.append(ren[8])
             f0.append(ren[0])
+            df0.append(ren[10])
             A0 = f0[0][0]/rho0[0][0]
+            A1 = A1*1.0e6 #converting from 1e-6 J/mol to J/mol
             #print 'minus',T,dens[0],dens[1],dens[2],Fobj_minus
 
             T = T+step
@@ -2103,7 +2117,11 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
         P_list = []
         rho_list = []
         f_list = []
+        df_list = []
         A_list = []
+        avdw_list = []
+        
+        avdw_list.append(avdw1)
     
         T_list.append(T0)
         T_list.append(T1)
@@ -2116,6 +2134,10 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
         f_list.append(f0)
         f_list.append(f1)
         f_list.append(f2)
+        
+        df_list.append(df0)
+        df_list.append(df1)
+        df_list.append(df2)
         
         A_list.append(A0)
         A_list.append(A1)
@@ -2130,9 +2152,9 @@ def PV_entropy(EoS,IDs,MR,T,Tfinal,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,
         rho_list.append(rho2)
     
         if dtype==1: #Isothermal
-            s_prop = renormalization.calc_entropy(T_list,f_list,P_list,rho_list,T*h,IDs)
+            s_prop = renormalization.calc_entropy(T_list,df_list,P_list,avdw_list,rho_list,T*h,IDs) #J/(mol.K)
         if dtype==2: #isobaric
-            s_prop = renormalization.calc_entropy(T_list,f_list,P_list,rho_list,T*h,IDs,P)
+            s_prop = renormalization.calc_entropy(T_list,df_list,P_list,avdw_list,rho_list,T*h,IDs,P)
     
     return s_prop
 #====================================================================================== 
@@ -2212,7 +2234,7 @@ def report_df(data,filename):
     df_a = pd.DataFrame(data)
     df = pd.read_csv(filename,sep=';')
     with open(filename, 'a') as f:
-        df_a.to_csv(f,index=False,header=False,index_label=False,sep=';')
+        df_a.to_csv(f,index=False,header=False,index_label=False,sep=';',float_format='%.9e')
 #======================================================================================
 
 #Define and handle which envelope to calculate-----------------------------------------
@@ -2412,20 +2434,37 @@ def calc_env(user_options,print_options,nc,IDs,EoS,MR,z,AR,CR,P,T,kij,auto,en_au
         
     #Analyze Entropy*****************************************************
     if env_type==11:
-        nd = 500
+        nd = 1000
         nx = 200
-        n = 5
+        n = 8
         stepT = 0.5
         finalT = T
         S_renorm = []
         print '\nCalculating entropy curve'
-        S_renorm = PV_entropy(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,1) #Isothermal
-        #dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,2) #Isobaric
+        for i in range(0,1):
+            S_renorm = PV_entropy(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,1) #Isothermal
+            SS1 = []
+            SS2 = []
+            SS3 = []
+            SS4 = []
+            SS5 = []
+            SS1.append(S_renorm[1])
+            SS2.append(S_renorm[2])
+            SS3.append(S_renorm[3])
+            SS4.append(S_renorm[4])
+            SS5.append(S_renorm[5])
+            report_df(SS1,'S1.csv')
+            report_df(SS2,'S2.csv')
+            print '-------------------------',i,T
+            T = T-2.0
+            finalT=T
+            i = i+1
+            #dp_dat = PV_deriv_calc_envelope(EoS,IDs,MR,T,finalT,stepT,nd,nx,kij,nc,CR,en_auto,beta_auto,SM,n,P,2) #Isobaric
         print 'Entropy curve calculated'
 
         print 'Creating entropy report'
         reportname = str('Entropy_%s.csv' %('_'.join(print_options[1])))
-        renormalization.report_entropy(reportname,S_renorm[0],S_renorm[1],S_renorm[2],print_options)
+        renormalization.report_entropy(reportname,S_renorm[0],S_renorm[1],S_renorm[2],S_renorm[3],S_renorm[4],S_renorm[5],print_options)
         print ('Report %s saved successfully' %reportname)
 
         print 'Starting to plot entropy curve'
